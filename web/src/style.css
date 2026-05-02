@@ -379,3 +379,34 @@ header p {
   color: #92400e;
   font-weight: 500;
 }
+
+.header-links {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.header-links a {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  color: var(--accent);
+  background: rgba(79, 70, 229, 0.07);
+  border: 1px solid rgba(79, 70, 229, 0.16);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.header-links a:hover {
+  color: var(--accent-hover);
+  background: rgba(79, 70, 229, 0.11);
+  border-color: rgba(79, 70, 229, 0.28);
+}
