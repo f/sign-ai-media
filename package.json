@@ -1,8 +1,8 @@
 {
   "name": "sign-ai-media",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Sign media with C2PA metadata that declares it as AI-generated.",
-  "homepage": "https://github.com/f/sign-ai-media#readme",
+  "homepage": "https://blog.fka.dev/sign-ai-media/",
   "bugs": {
     "url": "https://github.com/f/sign-ai-media/issues"
   },

@@ -14,6 +14,14 @@
 
 It is designed for model hosts, generation apps, internal media pipelines, dataset tooling, and any workflow that wants to label generated media without pretending to be another provider.
 
+## Browser Demo
+
+Try the browser-only signer and viewer:
+
+https://blog.fka.dev/sign-ai-media/
+
+The demo runs entirely in the browser with `@contentauth/c2pa-web` WebAssembly and bundled development signing credentials. It is useful for testing, demos, and local experiments. Use production C2PA credentials for public/user-facing provenance.
+
 ## What It Writes
 
 The default manifest includes:
@@ -43,6 +51,37 @@ npx sign-ai-media input.png output.png --software-agent "my-generator"
 ```
 
 This package uses `@contentauth/c2pa-node`, which ships native bindings. Prebuilt binaries are available for common macOS, Linux, and Windows platforms. Other platforms may need a local Rust toolchain.
+
+## Browser CDN API
+
+A browser ESM bundle is published from this repository and can be loaded directly from jsDelivr:
+
+```html
+<script type="module">
+  import {
+    signAiGeneratedMedia,
+    viewAiGeneratedMedia,
+  } from "https://cdn.jsdelivr.net/gh/f/sign-ai-media@main/web/cdn/sign-ai-media.browser.js";
+
+  const file = document.querySelector("input[type=file]").files[0];
+
+  const { blob } = await signAiGeneratedMedia(file, {
+    metadata: {
+      softwareAgent: "my-generator",
+      version: "1.0.0",
+      generator: "My Generator",
+      model: "my-model-v1",
+      producer: "My Org",
+      prompt: "A red fox in a snowy forest",
+    },
+  });
+
+  const signedFile = new File([blob], "signed.png", { type: blob.type });
+  console.log(await viewAiGeneratedMedia(signedFile));
+</script>
+```
+
+For pinned production use, replace `@main` with a commit SHA or release tag.
 
 ## CLI Usage
 

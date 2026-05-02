@@ -1,3 +1,5 @@
+import { buildCoseSign1, buildProtectedHeaders, buildSigStructure } from "./cose";
+
 const DEV_CERT_PEM = `-----BEGIN CERTIFICATE-----
 MIIChzCCAi6gAwIBAgIUcCTmJHYF8dZfG0d1UdT6/LXtkeYwCgYIKoZIzj0EAwIw
 gYwxCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJDQTESMBAGA1UEBwwJU29tZXdoZXJl
@@ -116,7 +118,6 @@ export async function signCose(
   dataToBeSigned: Uint8Array<ArrayBuffer>,
   reserveSize: number,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const { buildProtectedHeaders, buildSigStructure, buildCoseSign1 } = await import("./cose");
   const protectedHeaders = buildProtectedHeaders();
   const sigStructure = buildSigStructure(protectedHeaders, dataToBeSigned);
 
@@ -129,8 +130,6 @@ export async function signCose(
     ),
   );
   const rawSig = normalizeEcdsaSignature(signature);
-
-  console.log("[sign-ai-media] raw ECDSA signature size:", rawSig.length);
 
   return buildCoseSign1(
     protectedHeaders,

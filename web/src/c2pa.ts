@@ -75,8 +75,6 @@ export async function signMedia(
   const signer = {
     sign: async (data: Uint8Array<ArrayBuffer>, reserveSize: number): Promise<Uint8Array<ArrayBuffer>> => {
       const cose = await signCose(data, reserveSize || RESERVE);
-      const padSize = reserveSize || RESERVE;
-      console.log("[sign-ai-media] COSE_Sign1 size:", cose.length, "reserveSize:", padSize);
       return cose;
     },
     reserveSize: async () => RESERVE,
