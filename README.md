@@ -22,6 +22,48 @@ https://blog.fka.dev/sign-ai-media/
 
 The demo runs entirely in the browser with `@contentauth/c2pa-web` WebAssembly and bundled development signing credentials. It is useful for testing, demos, and local experiments. Use production C2PA credentials for public/user-facing provenance.
 
+## Claude Code Skill
+
+This repo includes a Claude Code skill:
+
+```text
+.claude/skills/sign-ai-media/SKILL.md
+```
+
+Claude Code can load project skills from the repository's `.claude/skills/` directory. To use this skill in another project, copy the skill directory into that project's `.claude/skills/` folder:
+
+```sh
+npx skills add f/sign-ai-media --skill sign-ai-media
+```
+
+For a global install, use `-g` so Claude Code can find it from any project:
+
+```sh
+npx skills add f/sign-ai-media --skill sign-ai-media -g -y
+```
+
+Verify the global install with:
+
+```sh
+npx skills list -g
+```
+
+Then restart Claude Code, or start a new session, and ask naturally:
+
+```text
+Use the sign-ai-media skill to sign this image as AI-generated.
+```
+
+```text
+Use the sign-ai-media skill to inspect this file's C2PA metadata.
+```
+
+```text
+Use the sign-ai-media skill to add browser-side signing with the CDN API.
+```
+
+Use the skill when you want Claude Code to help sign media, inspect C2PA metadata, choose the right CLI flags, or integrate the browser/CDN API. The skill mirrors the same CLI, TypeScript API, and browser CDN usage documented below.
+
 ## What It Writes
 
 The default manifest includes:
