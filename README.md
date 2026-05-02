@@ -156,6 +156,21 @@ npx sign-ai-media --view output.png --fetch-remote-manifest
 npx sign-ai-media --view output.png --no-fetch-remote-manifest
 ```
 
+## Why not c2patool?
+
+[`c2patool`](https://opensource.contentauthenticity.org/docs/c2patool/) is the official general-purpose command line tool for C2PA. It can read C2PA manifest reports, inspect low-level manifest data, and add manifests to supported media files.
+
+Use `c2patool` when you want a broad, standards-level C2PA utility.
+
+Use `sign-ai-media` when you want a smaller tool focused on AI-generated media workflows:
+
+- It has simple flags for common AI metadata such as `--software-agent`, `--model`, `--prompt`, `--source-type`, `--seed`, and training/data-mining policy.
+- It writes an AI-oriented manifest shape by default, including `c2pa.actions.v2`, `trainedAlgorithmicMedia`, CreativeWork metadata, and optional CAWG training/data-mining assertions.
+- It includes a TypeScript API for Node.js apps, queues, media pipelines, and CMS integrations.
+- It includes a focused `--view` mode that extracts the AI/C2PA fields this package writes, instead of only showing a full generic manifest report.
+
+In short: `c2patool` is the toolbox. `sign-ai-media` is the shortcut for signing and reading AI media provenance in apps and automation.
+
 ## TypeScript API
 
 ```ts
