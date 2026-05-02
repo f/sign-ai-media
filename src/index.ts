@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 
@@ -11,6 +12,28 @@ import {
 
 const DEFAULT_DIGITAL_SOURCE_TYPE =
   "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia";
+
+const IPTC_DIGITAL_SOURCE_TYPE_BASE =
+  "http://cv.iptc.org/newscodes/digitalsourcetype/";
+
+export const DIGITAL_SOURCE_TYPE_PRESETS = {
+  "ai-generated": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}trainedAlgorithmicMedia`,
+  "ai-edited": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}compositeWithTrainedAlgorithmicMedia`,
+  algorithmic: `${IPTC_DIGITAL_SOURCE_TYPE_BASE}algorithmicMedia`,
+  "algorithmically-enhanced": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}algorithmicallyEnhanced`,
+  "composite-ai": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}compositeSynthetic`,
+  composite: `${IPTC_DIGITAL_SOURCE_TYPE_BASE}composite`,
+  "composite-capture": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}compositeCapture`,
+  capture: `${IPTC_DIGITAL_SOURCE_TYPE_BASE}digitalCapture`,
+  "screen-capture": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}screenCapture`,
+  "human-edited": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}humanEdits`,
+  "digital-art": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}digitalArt`,
+  "digital-creation": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}digitalCreation`,
+  "software-image": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}softwareImage`,
+  "data-driven": `${IPTC_DIGITAL_SOURCE_TYPE_BASE}dataDrivenMedia`,
+  empty: "http://c2pa.org/digitalsourcetype/empty",
+  "ai-data": "http://c2pa.org/digitalsourcetype/trainedAlgorithmicData",
+} as const;
 
 const DEVELOPMENT_CERTIFICATE_URL = new URL(
   "../assets/certs/development-cert.pem",
@@ -77,10 +100,49 @@ export interface AiGeneratedMetadata {
    * Optional prompt. Be careful: embedded C2PA metadata can be read by others.
    */
   prompt?: string;
+  negativePrompt?: string;
+  seed?: string | number;
+  scheduler?: string;
+  cfgScale?: number;
+  steps?: number;
+  modelVersion?: string;
+  modelUri?: string;
+  modelHash?: string;
+  inputUri?: string;
+  inputHash?: string;
+  action?: string;
+  actionDescription?: string;
+  actionParameters?: Record<string, unknown>;
+  trainingMining?: TrainingMiningAssertion;
   /**
    * Extra assertion objects to merge into the schema.org CreativeWork assertion.
    */
   creativeWork?: Record<string, unknown>;
+}
+
+export type DigitalSourceTypePreset = keyof typeof DIGITAL_SOURCE_TYPE_PRESETS;
+
+export type TrainingMiningUse = "allowed" | "notAllowed" | "constrained";
+
+export interface TrainingMiningEntry {
+  use: TrainingMiningUse;
+  constraint_info?: string;
+}
+
+export interface TrainingMiningAssertion {
+  "cawg.data_mining"?: TrainingMiningEntry;
+  "cawg.ai_inference"?: TrainingMiningEntry;
+  "cawg.ai_training"?: TrainingMiningEntry;
+  "cawg.ai_generative_training"?: TrainingMiningEntry;
+  [key: string]: TrainingMiningEntry | undefined;
+}
+
+export interface IngredientInput {
+  path: string;
+  relationship?: "parentOf" | "componentOf" | "inputTo";
+  title?: string;
+  mimeType?: string;
+  instanceId?: string;
 }
 
 export interface LocalSignerOptions {
@@ -99,6 +161,7 @@ export interface SignAiGeneratedImageOptions {
   vendor?: string;
   embed?: boolean;
   remoteManifestUrl?: string | null;
+  ingredients?: IngredientInput[];
 }
 
 export interface SignAiGeneratedImageResult {
@@ -112,6 +175,9 @@ export type SignAiGeneratedMediaResult = SignAiGeneratedImageResult;
 export interface ViewAiGeneratedMediaOptions {
   input: string;
   mimeType?: string;
+  verifyTrust?: boolean;
+  trustAnchors?: string;
+  remoteManifestFetch?: boolean;
 }
 
 export interface ViewAiGeneratedMediaResult {
@@ -130,10 +196,15 @@ export interface ExtractedAiGeneratedMetadata {
   model: JsonValue;
   producer: JsonValue;
   prompt: JsonValue;
+  negativePrompt: JsonValue;
+  generation: JsonValue;
   softwareAgent: JsonValue;
   digitalSourceType: JsonValue;
   createdAt: string | null;
   action: string | null;
+  actionDescription: string | null;
+  actionParameters: JsonValue;
+  trainingMining: JsonValue;
   signatureIssuer: string | null;
   signatureTime: string | null;
 }
@@ -219,6 +290,7 @@ export async function signAiGeneratedImage({
   vendor,
   embed = true,
   remoteManifestUrl = null,
+  ingredients = [],
 }: SignAiGeneratedImageOptions): Promise<SignAiGeneratedImageResult> {
   const manifest = createAiGeneratedManifest({
     input,
@@ -241,6 +313,10 @@ export async function signAiGeneratedImage({
     builder.setRemoteUrl(remoteManifestUrl);
   }
 
+  for (const ingredient of ingredients) {
+    await addIngredient(builder, ingredient);
+  }
+
   builder.sign(effectiveSigner, asset, { path: output });
 
   return {
@@ -258,9 +334,15 @@ export async function signAiGeneratedMedia(
 export async function viewAiGeneratedMedia({
   input,
   mimeType,
+  verifyTrust,
+  trustAnchors,
+  remoteManifestFetch,
 }: ViewAiGeneratedMediaOptions): Promise<ViewAiGeneratedMediaResult> {
   const asset: FileAsset = mimeType ? { path: input, mimeType } : { path: input };
-  const reader = await Reader.fromAsset(asset);
+  const reader = await Reader.fromAsset(
+    asset,
+    createReaderSettings({ verifyTrust, trustAnchors, remoteManifestFetch }),
+  );
   const activeManifest = reader?.getActive() ?? null;
   const manifestStore = reader?.json() as ManifestStoreLike | null | undefined;
   const validationStatus = normalizeValidationStatus(
@@ -304,6 +386,23 @@ export function createAiGeneratedManifest({
     metadata.claimGenerator ??
     formatClaimGenerator(metadata.softwareAgent, metadata.version);
 
+  const generation = {
+    model: metadata.model,
+    modelVersion: metadata.modelVersion,
+    modelUri: metadata.modelUri,
+    modelHash: metadata.modelHash,
+    inputUri: metadata.inputUri,
+    inputHash: metadata.inputHash,
+    seed: metadata.seed,
+    scheduler: metadata.scheduler,
+    cfgScale: metadata.cfgScale,
+    steps: metadata.steps,
+  };
+  const actionParameters = {
+    ...removeUndefinedValues(generation),
+    ...(metadata.actionParameters ?? {}),
+  };
+
   return {
     claim_generator: claimGenerator,
     claim_generator_info: [softwareAgent],
@@ -315,14 +414,30 @@ export function createAiGeneratedManifest({
         data: {
           actions: [
             {
-              action: "c2pa.created",
+              action: metadata.action ?? "c2pa.created",
               when,
               softwareAgent,
               digitalSourceType,
+              ...(metadata.actionDescription
+                ? { description: metadata.actionDescription }
+                : {}),
+              ...(Object.keys(actionParameters).length > 0
+                ? { parameters: actionParameters }
+                : {}),
             },
           ],
         },
       },
+      ...(metadata.trainingMining
+        ? [
+            {
+              label: "cawg.training-mining",
+              data: {
+                entries: metadata.trainingMining,
+              },
+            },
+          ]
+        : []),
       {
         label: "stds.schema-org.CreativeWork",
         data: {
@@ -331,8 +446,12 @@ export function createAiGeneratedManifest({
           generator:
             metadata.generator ?? metadata.model ?? metadata.softwareAgent,
           producer: metadata.producer,
+          model: metadata.model,
+          modelVersion: metadata.modelVersion,
           softwareAgent,
           prompt: metadata.prompt,
+          negativePrompt: metadata.negativePrompt,
+          generation: removeUndefinedValues(generation),
           digitalSourceType,
           ...metadata.creativeWork,
         },
@@ -353,6 +472,15 @@ export function inferMimeType(filePath: string): string {
   }
 
   return mimeType;
+}
+
+export function resolveDigitalSourceType(
+  presetOrUrl: DigitalSourceTypePreset | string,
+): string {
+  return (
+    DIGITAL_SOURCE_TYPE_PRESETS[presetOrUrl as DigitalSourceTypePreset] ??
+    presetOrUrl
+  );
 }
 
 export function formatClaimGenerator(name: string, version?: string): string {
@@ -383,12 +511,18 @@ function extractAiGeneratedMetadata(manifest: ManifestLike): ExtractedAiGenerate
     model: toJsonValue(creativeWork.model),
     producer: toJsonValue(creativeWork.producer),
     prompt: toJsonValue(creativeWork.prompt),
+    negativePrompt: toJsonValue(creativeWork.negativePrompt),
+    generation: toJsonValue(creativeWork.generation),
     softwareAgent: toJsonValue(action?.softwareAgent ?? creativeWork.softwareAgent),
     digitalSourceType: toJsonValue(
       action?.digitalSourceType ?? creativeWork.digitalSourceType,
     ),
     createdAt: typeof action?.when === "string" ? action.when : null,
     action: typeof action?.action === "string" ? action.action : null,
+    actionDescription:
+      typeof action?.description === "string" ? action.description : null,
+    actionParameters: toJsonValue(action?.parameters),
+    trainingMining: toJsonValue(getAssertionData(manifest, "cawg.training-mining")),
     signatureIssuer: manifest.signature_info?.issuer ?? null,
     signatureTime: manifest.signature_info?.time ?? null,
   };
@@ -487,6 +621,71 @@ function getFirstAction(data: unknown): Record<string, unknown> | null {
   return action && typeof action === "object"
     ? (action as Record<string, unknown>)
     : null;
+}
+
+async function addIngredient(builder: Builder, ingredient: IngredientInput) {
+  const mimeType = ingredient.mimeType ?? inferMimeType(ingredient.path);
+  const ingredientJson = JSON.stringify({
+    title: ingredient.title ?? basename(ingredient.path),
+    format: mimeType,
+    instance_id: ingredient.instanceId ?? `urn:uuid:${randomUUID()}`,
+    relationship: ingredient.relationship ?? "componentOf",
+  });
+
+  await builder.addIngredient(ingredientJson, {
+    path: ingredient.path,
+    mimeType,
+  });
+}
+
+function createReaderSettings({
+  verifyTrust,
+  trustAnchors,
+  remoteManifestFetch,
+}: {
+  verifyTrust?: boolean;
+  trustAnchors?: string;
+  remoteManifestFetch?: boolean;
+}) {
+  if (
+    verifyTrust === undefined &&
+    !trustAnchors &&
+    remoteManifestFetch === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    verify: {
+      ...(verifyTrust !== undefined ? { verify_trust: verifyTrust } : {}),
+      ...(remoteManifestFetch !== undefined
+        ? { remote_manifest_fetch: remoteManifestFetch }
+        : {}),
+    },
+    ...(trustAnchors
+      ? {
+          trust: {
+            trust_anchors: trustAnchors,
+            verify_trust_list: true,
+          },
+        }
+      : {}),
+  };
+}
+
+function getAssertionData(
+  manifest: ManifestLike,
+  label: string,
+): unknown | undefined {
+  return manifest.assertions?.find(
+    (assertion: ManifestAssertionLike) => assertion.label === label,
+  )?.data;
+}
+
+function removeUndefinedValues<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as T;
 }
 
 function normalizeTimestamp(value: string | Date | undefined): string {

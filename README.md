@@ -105,14 +105,55 @@ Status: No C2PA manifest found.
 Useful metadata options:
 
 ```sh
+--source-type ai-generated
 --claim-generator "acme-image-service/1.0.0"
 --prompt "A red fox in a snowy forest"
+--prompt-file ./prompt.txt
+--negative-prompt "low quality, blurry"
+--seed 12345
+--scheduler "euler-a"
+--cfg-scale 7.5
+--steps 30
 --created-at "2026-05-02T09:00:00Z"
 --digital-source-type "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
 --creative-work-json '{"usageInfo":"internal","copyrightNotice":"Acme Labs"}'
 --mime-type image/png
 --remote-manifest-url "https://cdn.example.com/manifests/image.c2pa"
 --no-embed
+```
+
+Action/provenance options:
+
+```sh
+--action c2pa.created
+--action-description "Generated from a text prompt"
+--action-parameters-json '{"pipeline":"txt2img"}'
+--ingredient ./source-image.png
+--ingredient ./mask.png
+--parent ./original.png
+--model-uri "https://example.com/models/acme-diffusion-v1"
+--model-hash "sha256:..."
+--input-uri "https://example.com/inputs/reference.png"
+--input-hash "sha256:..."
+```
+
+Training and data-mining policy options:
+
+```sh
+--ai-training-use notAllowed
+--ai-generative-training-use notAllowed
+--data-mining-use constrained
+--ai-inference-use allowed
+--training-constraint-info "See https://example.com/ai-use-policy"
+```
+
+Viewer options:
+
+```sh
+npx sign-ai-media --view output.png --json
+npx sign-ai-media --view output.png --verify-trust --trust-anchors ./anchors.pem
+npx sign-ai-media --view output.png --fetch-remote-manifest
+npx sign-ai-media --view output.png --no-fetch-remote-manifest
 ```
 
 ## TypeScript API
@@ -129,8 +170,19 @@ await signAiGeneratedMedia({
     claimGenerator: "acme-image-service/1.0.0",
     generator: "Acme Image API",
     model: "acme-diffusion-v1",
+    modelVersion: "2026-05-02",
     producer: "Acme Labs",
     prompt: "A red fox in a snowy forest",
+    negativePrompt: "low quality, blurry",
+    seed: 12345,
+    scheduler: "euler-a",
+    cfgScale: 7.5,
+    steps: 30,
+    actionDescription: "Generated from a text prompt",
+    trainingMining: {
+      "cawg.ai_training": { use: "notAllowed" },
+      "cawg.ai_generative_training": { use: "notAllowed" },
+    },
   },
 });
 
@@ -228,11 +280,67 @@ Optional metadata:
 - `claimGenerator`: C2PA user-agent style claim generator. Defaults to `softwareAgent/version`.
 - `generator`: friendly generator name for CreativeWork metadata.
 - `model`: model name for consumers that display richer generator details.
+- `modelVersion`: model revision or version.
+- `modelUri` and `modelHash`: model or model-card reference.
+- `inputUri` and `inputHash`: remote input reference.
 - `producer`: organization, service, or creator responsible for the output.
 - `prompt`: prompt text to embed. Treat this as public metadata.
+- `negativePrompt`: negative prompt text to embed. Treat this as public metadata.
+- `seed`, `scheduler`, `cfgScale`, and `steps`: generation parameters.
 - `createdAt`: ISO timestamp. Defaults to the current time.
 - `digitalSourceType`: override the IPTC source type URL.
+- `action`: C2PA action name. Defaults to `c2pa.created`.
+- `actionDescription`: free-text action description.
+- `actionParameters`: extra action parameters for advanced C2PA workflows.
+- `trainingMining`: CAWG Training and Data Mining assertion entries.
 - `creativeWork`: extra properties merged into the schema.org CreativeWork assertion.
+
+## Digital Source Presets
+
+Use `--source-type` for common source types without remembering the full vocabulary URL:
+
+- `ai-generated`: created by a trained generative AI model.
+- `ai-edited`: human or tool edits using generative AI, such as inpainting or outpainting.
+- `algorithmic`: algorithmic media not based on sampled training data.
+- `algorithmically-enhanced`: algorithmic enhancement such as denoise or sharpen.
+- `composite-ai`: composite media with at least one generative AI element.
+- `composite`: composite of several elements.
+- `composite-capture`: composite where all elements are captures of real life.
+- `capture`: digital camera or sensor capture.
+- `screen-capture`: screen capture.
+- `human-edited`: non-generative human edits.
+- `digital-art`, `digital-creation`, `software-image`, and `data-driven`: other common IPTC source categories.
+- `empty`: C2PA empty asset source type.
+- `ai-data`: C2PA trained algorithmic data source type for non-media data.
+
+You can still pass a full URL with `--digital-source-type`.
+
+## Ingredients and Parents
+
+Use `--ingredient` to attach source media that contributed to the signed output. Repeating the flag adds multiple `componentOf` ingredients:
+
+```sh
+npx sign-ai-media output.png signed.png \
+  --software-agent "acme-image-model" \
+  --ingredient ./reference.png \
+  --ingredient ./mask.png
+```
+
+Use `--parent` when the output is derived from an original asset:
+
+```sh
+npx sign-ai-media edited.png signed.png \
+  --software-agent "acme-editor" \
+  --parent ./original.png \
+  --action c2pa.edited \
+  --action-description "Inpainted background"
+```
+
+## Training and Data Mining
+
+The `--ai-training-use`, `--ai-generative-training-use`, `--data-mining-use`, and `--ai-inference-use` flags write a `cawg.training-mining` assertion using the [CAWG Training and Data Mining Assertion](https://cawg.io/training-and-data-mining/1.1/).
+
+Each flag accepts `allowed`, `notAllowed`, or `constrained`. When using `constrained`, add `--training-constraint-info` to explain the policy or link to a license.
 
 ## Supported Media
 
