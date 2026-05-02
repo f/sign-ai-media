@@ -66,6 +66,42 @@ sign-ai-media input.png output.png \
   --tsa-url "https://timestamp.example.com"
 ```
 
+## Viewing Metadata
+
+To inspect AI/C2PA metadata in a signed file, use `--view` with the input file:
+
+```sh
+sign-ai-media --view output.png
+```
+
+The viewer does not modify the file. It reads the active C2PA manifest, extracts the AI-generation fields written by this package, and prints a readable summary:
+
+```text
+AI media metadata: output.png
+Status: C2PA manifest found
+Title: output.png
+Format: image/png
+Claim generator: acme-image-service/1.0.0
+Generator: Acme Image API
+Model: acme-diffusion-v1
+Producer: Acme Labs
+Software agent: {"name":"acme-image-model","version":"1.0.0"}
+Action: c2pa.created
+Created at: 2026-05-02T09:00:00.000Z
+Digital source type: http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia
+Validation: No validation issues reported.
+Assertions:
+  - c2pa.actions.v2
+  - stds.schema-org.CreativeWork
+```
+
+If no C2PA manifest is present, the viewer prints:
+
+```text
+AI media metadata: input.png
+Status: No C2PA manifest found.
+```
+
 Useful metadata options:
 
 ```sh
@@ -82,7 +118,7 @@ Useful metadata options:
 ## TypeScript API
 
 ```ts
-import { signAiGeneratedMedia } from "sign-ai-media";
+import { signAiGeneratedMedia, viewAiGeneratedMedia } from "sign-ai-media";
 
 await signAiGeneratedMedia({
   input: "input.png",
@@ -97,6 +133,57 @@ await signAiGeneratedMedia({
     prompt: "A red fox in a snowy forest",
   },
 });
+
+const metadata = await viewAiGeneratedMedia({
+  input: "output.png",
+});
+```
+
+`viewAiGeneratedMedia()` returns a JSON-serializable object, so it can be logged, sent from an API route, or stored directly:
+
+```ts
+console.log(JSON.stringify(metadata, null, 2));
+```
+
+Example result:
+
+```json
+{
+  "input": "output.png",
+  "hasManifest": true,
+  "metadata": {
+    "title": "output.png",
+    "format": "image/png",
+    "claimGenerator": "acme-image-service/1.0.0",
+    "generator": "Acme Image API",
+    "model": "acme-diffusion-v1",
+    "producer": "Acme Labs",
+    "prompt": "A red fox in a snowy forest",
+    "softwareAgent": {
+      "name": "acme-image-model",
+      "version": "1.0.0"
+    },
+    "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia",
+    "createdAt": "2026-05-02T09:00:00.000Z",
+    "action": "c2pa.created",
+    "signatureIssuer": "Example Signing Cert",
+    "signatureTime": "2026-05-02T09:00:00+00:00"
+  },
+  "validationStatus": [],
+  "assertionLabels": ["c2pa.actions.v2", "stds.schema-org.CreativeWork"]
+}
+```
+
+When no manifest is found, the result is:
+
+```json
+{
+  "input": "input.png",
+  "hasManifest": false,
+  "metadata": null,
+  "validationStatus": [],
+  "assertionLabels": []
+}
 ```
 
 Pass a signer when you want the manifest signed with your own production identity:

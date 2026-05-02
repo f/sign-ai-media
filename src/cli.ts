@@ -6,6 +6,7 @@ import {
   SigningAlgorithm,
   createLocalSigner,
   signAiGeneratedMedia,
+  viewAiGeneratedMedia,
   type AiGeneratedMetadata,
 } from "./index.js";
 
@@ -26,9 +27,10 @@ const metadataSchema = z.object({
 const program = new Command()
   .name("sign-ai-media")
   .description("Sign media with C2PA metadata declaring AI generation.")
-  .argument("<input>", "input media path")
-  .argument("<output>", "output media path")
-  .requiredOption(
+  .argument("[input]", "input media path")
+  .argument("[output]", "output media path")
+  .option("--view <input-file>", "view AI/C2PA metadata from a signed media file")
+  .option(
     "--software-agent <name>",
     "model, service, app, or pipeline that created the media",
   )
@@ -64,36 +66,56 @@ const program = new Command()
   .option("--vendor <name>", "manifest label vendor prefix")
   .option("--remote-manifest-url <url>", "store manifest remotely at this URL")
   .option("--no-embed", "do not embed the signed manifest in the output asset")
-  .action(async (input: string, output: string, rawOptions) => {
-    const metadata = metadataSchema.parse({
-      softwareAgent: rawOptions.softwareAgent,
-      version: rawOptions.version,
-      claimGenerator: rawOptions.claimGenerator,
-      generator: rawOptions.generator,
-      digitalSourceType: rawOptions.digitalSourceType,
-      createdAt: rawOptions.createdAt,
-      title: rawOptions.title,
-      producer: rawOptions.producer,
-      model: rawOptions.model,
-      prompt: rawOptions.prompt,
-      creativeWork: rawOptions.creativeWorkJson,
-    }) satisfies AiGeneratedMetadata;
+  .action(
+    async (input: string | undefined, output: string | undefined, rawOptions) => {
+      if (rawOptions.view) {
+        const result = await viewAiGeneratedMedia({
+          input: rawOptions.view,
+          mimeType: rawOptions.mimeType,
+        });
 
-    const signer = await resolveSigner(rawOptions);
+        printViewResult(result);
+        return;
+      }
 
-    const result = await signAiGeneratedMedia({
-      input,
-      output,
-      metadata,
-      signer,
-      mimeType: rawOptions.mimeType,
-      vendor: rawOptions.vendor,
-      embed: rawOptions.embed,
-      remoteManifestUrl: rawOptions.remoteManifestUrl ?? null,
-    });
+      if (!input || !output) {
+        throw new Error("input and output are required unless --view is used");
+      }
 
-    console.log(`Signed AI-generated media: ${result.output}`);
-  });
+      if (!rawOptions.softwareAgent) {
+        throw new Error("--software-agent is required when signing media");
+      }
+
+      const metadata = metadataSchema.parse({
+        softwareAgent: rawOptions.softwareAgent,
+        version: rawOptions.version,
+        claimGenerator: rawOptions.claimGenerator,
+        generator: rawOptions.generator,
+        digitalSourceType: rawOptions.digitalSourceType,
+        createdAt: rawOptions.createdAt,
+        title: rawOptions.title,
+        producer: rawOptions.producer,
+        model: rawOptions.model,
+        prompt: rawOptions.prompt,
+        creativeWork: rawOptions.creativeWorkJson,
+      }) satisfies AiGeneratedMetadata;
+
+      const signer = await resolveSigner(rawOptions);
+
+      const result = await signAiGeneratedMedia({
+        input,
+        output,
+        metadata,
+        signer,
+        mimeType: rawOptions.mimeType,
+        vendor: rawOptions.vendor,
+        embed: rawOptions.embed,
+        remoteManifestUrl: rawOptions.remoteManifestUrl ?? null,
+      });
+
+      console.log(`Signed AI-generated media: ${result.output}`);
+    },
+  );
 
 program.parseAsync().catch((error: unknown) => {
   if (error instanceof z.ZodError) {
@@ -168,4 +190,71 @@ function parseJsonObject(value: string): Record<string, unknown> {
 
     throw new InvalidArgumentError(`invalid JSON object: ${message}`);
   }
+}
+
+function printViewResult(result: Awaited<ReturnType<typeof viewAiGeneratedMedia>>) {
+  console.log(`AI media metadata: ${result.input}`);
+
+  if (!result.hasManifest || !result.metadata) {
+    console.log("Status: No C2PA manifest found.");
+    return;
+  }
+
+  const { metadata } = result;
+
+  printField("Status", "C2PA manifest found");
+  printField("Title", metadata.title);
+  printField("Format", metadata.format);
+  printField("Claim generator", metadata.claimGenerator);
+  printField("Generator", metadata.generator);
+  printField("Model", metadata.model);
+  printField("Producer", metadata.producer);
+  printField("Software agent", formatValue(metadata.softwareAgent));
+  printField("Action", metadata.action);
+  printField("Created at", metadata.createdAt);
+  printField("Digital source type", metadata.digitalSourceType);
+  printField("Prompt", metadata.prompt);
+  printField("Signature issuer", metadata.signatureIssuer);
+  printField("Signature time", metadata.signatureTime);
+
+  if (result.validationStatus.length > 0) {
+    console.log("Validation:");
+    for (const status of result.validationStatus) {
+      const explanation = status.explanation ? ` - ${status.explanation}` : "";
+      console.log(`  - ${status.code}${explanation}`);
+    }
+  } else {
+    console.log("Validation: No validation issues reported.");
+  }
+
+  if (result.assertionLabels.length > 0) {
+    console.log("Assertions:");
+    for (const label of result.assertionLabels) {
+      console.log(`  - ${label}`);
+    }
+  }
+}
+
+function printField(label: string, value: unknown) {
+  const formatted = formatValue(value);
+
+  if (formatted) {
+    console.log(`${label}: ${formatted}`);
+  }
+}
+
+function formatValue(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
 }

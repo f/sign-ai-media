@@ -8,8 +8,10 @@ import {
   createTestSigner,
   type FileAsset,
   type LocalSigner,
+  type ResolvedManifest,
   type Signer,
   type SignOptions,
+  type types,
 } from "c2pa-node";
 
 const DEFAULT_DIGITAL_SOURCE_TYPE =
@@ -103,6 +105,49 @@ export interface SignAiGeneratedImageResult {
 export type SignAiGeneratedMediaOptions = SignAiGeneratedImageOptions;
 export type SignAiGeneratedMediaResult = SignAiGeneratedImageResult;
 
+export interface ViewAiGeneratedMediaOptions {
+  input: string;
+  mimeType?: string;
+}
+
+export interface ViewAiGeneratedMediaResult {
+  input: string;
+  hasManifest: boolean;
+  metadata: ExtractedAiGeneratedMetadata | null;
+  validationStatus: ExtractedValidationStatus[];
+  assertionLabels: string[];
+}
+
+export interface ExtractedAiGeneratedMetadata {
+  title: string | null;
+  format: string | null;
+  claimGenerator: string | null;
+  generator: JsonValue;
+  model: JsonValue;
+  producer: JsonValue;
+  prompt: JsonValue;
+  softwareAgent: JsonValue;
+  digitalSourceType: JsonValue;
+  createdAt: string | null;
+  action: string | null;
+  signatureIssuer: string | null;
+  signatureTime: string | null;
+}
+
+export interface ExtractedValidationStatus {
+  code: string;
+  explanation: string | null;
+  url: string | null;
+}
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 export { SigningAlgorithm, createTestSigner, type LocalSigner, type Signer };
 
 export async function createLocalSigner({
@@ -175,6 +220,33 @@ export async function signAiGeneratedMedia(
   options: SignAiGeneratedMediaOptions,
 ): Promise<SignAiGeneratedMediaResult> {
   return signAiGeneratedImage(options);
+}
+
+export async function viewAiGeneratedMedia({
+  input,
+  mimeType,
+}: ViewAiGeneratedMediaOptions): Promise<ViewAiGeneratedMediaResult> {
+  const c2pa = createC2pa();
+  const asset: FileAsset = mimeType ? { path: input, mimeType } : { path: input };
+  const manifestStore = await c2pa.read(asset);
+  const activeManifest = manifestStore?.active_manifest ?? null;
+  const validationStatus = normalizeValidationStatus(
+    manifestStore?.validation_status ?? [],
+  );
+  const metadata = activeManifest
+    ? extractAiGeneratedMetadata(activeManifest)
+    : null;
+
+  return {
+    input,
+    hasManifest: Boolean(activeManifest),
+    metadata,
+    validationStatus,
+    assertionLabels:
+      activeManifest?.assertions
+        ?.map((assertion: types.ManifestAssertion) => assertion.label)
+        .sort() ?? [],
+  };
 }
 
 export function createAiGeneratedManifest({
@@ -258,6 +330,92 @@ export function formatClaimGenerator(name: string, version?: string): string {
   const normalizedName = name.trim().replace(/\s+/g, "-");
 
   return version ? `${normalizedName}/${version}` : normalizedName;
+}
+
+function extractAiGeneratedMetadata(
+  manifest: ResolvedManifest,
+): ExtractedAiGeneratedMetadata {
+  const actionAssertion = manifest.assertions?.find(
+    (assertion: types.ManifestAssertion) => assertion.label === "c2pa.actions.v2",
+  );
+  const creativeWorkAssertion = manifest.assertions?.find(
+    (assertion: types.ManifestAssertion) =>
+      assertion.label === "stds.schema-org.CreativeWork",
+  );
+  const action = getFirstAction(actionAssertion?.data);
+  const creativeWork =
+    creativeWorkAssertion?.data && typeof creativeWorkAssertion.data === "object"
+      ? (creativeWorkAssertion.data as Record<string, unknown>)
+      : {};
+
+  return {
+    title: manifest.title ?? null,
+    format: manifest.format ?? null,
+    claimGenerator: manifest.claim_generator ?? null,
+    generator: toJsonValue(creativeWork.generator),
+    model: toJsonValue(creativeWork.model),
+    producer: toJsonValue(creativeWork.producer),
+    prompt: toJsonValue(creativeWork.prompt),
+    softwareAgent: toJsonValue(action?.softwareAgent ?? creativeWork.softwareAgent),
+    digitalSourceType: toJsonValue(
+      action?.digitalSourceType ?? creativeWork.digitalSourceType,
+    ),
+    createdAt: typeof action?.when === "string" ? action.when : null,
+    action: typeof action?.action === "string" ? action.action : null,
+    signatureIssuer: manifest.signature_info?.issuer ?? null,
+    signatureTime: manifest.signature_info?.time ?? null,
+  };
+}
+
+function normalizeValidationStatus(
+  statuses: types.ValidationStatus[],
+): ExtractedValidationStatus[] {
+  return statuses.map((status) => ({
+    code: status.code,
+    explanation: status.explanation ?? null,
+    url: status.url ?? null,
+  }));
+}
+
+function toJsonValue(value: unknown): JsonValue {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(toJsonValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, toJsonValue(entry)]),
+    );
+  }
+
+  return null;
+}
+
+function getFirstAction(data: unknown): Record<string, unknown> | null {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const actions = (data as { actions?: unknown }).actions;
+
+  if (!Array.isArray(actions)) {
+    return null;
+  }
+
+  const [action] = actions;
+
+  return action && typeof action === "object"
+    ? (action as Record<string, unknown>)
+    : null;
 }
 
 function normalizeTimestamp(value: string | Date | undefined): string {
