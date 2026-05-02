@@ -1,5 +1,3 @@
-# sign-ai-media
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-lockup-dark.png">
