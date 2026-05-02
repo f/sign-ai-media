@@ -6,6 +6,42 @@ type Mode = "sign" | "view";
 let currentMode: Mode = "sign";
 let selectedFile: File | null = null;
 
+const CDN_URL =
+  "https://cdn.jsdelivr.net/gh/f/sign-ai-media@main/web/cdn/sign-ai-media.browser.js";
+
+const SIGN_DOCS = `<script type="module">
+import {
+  signAiGeneratedMedia,
+  viewAiGeneratedMedia,
+} from "${CDN_URL}";
+
+const input = document.querySelector("input[type=file]");
+const file = input.files[0];
+
+const { blob } = await signAiGeneratedMedia(file, {
+  metadata: {
+    softwareAgent: "my-generator",
+    version: "1.0.0",
+    generator: "My Generator",
+    model: "my-model-v1",
+    producer: "My Org",
+    prompt: "A red fox in a snowy forest",
+  },
+});
+
+console.log(await viewAiGeneratedMedia(blob));
+</script>`;
+
+const VIEW_DOCS = `<script type="module">
+import { viewAiGeneratedMedia } from "${CDN_URL}";
+
+const input = document.querySelector("input[type=file]");
+const file = input.files[0];
+
+const result = await viewAiGeneratedMedia(file);
+console.log(result.hasManifest, result.activeManifest);
+</script>`;
+
 function $(id: string): HTMLElement {
   return document.getElementById(id)!;
 }
@@ -15,6 +51,7 @@ function init() {
   setupDropZone();
   setupSourceTypeSelect();
   setupFormSubmit();
+  updateDocs("sign");
 }
 
 function setupTabs() {
@@ -37,6 +74,17 @@ function switchMode(mode: Mode) {
   $("file-name").textContent = "";
   $("file-name").classList.add("hidden");
   ($("file-input") as HTMLInputElement).value = "";
+  updateDocs(mode);
+}
+
+function updateDocs(mode: Mode) {
+  $("cdn-docs-title").textContent =
+    mode === "sign" ? "Sign from jsDelivr" : "View from jsDelivr";
+  $("cdn-docs-description").textContent =
+    mode === "sign"
+      ? "Import the offline browser bundle from any page to sign AI media and inspect the generated C2PA metadata."
+      : "Import the offline browser bundle from any page to inspect C2PA metadata in an image or video.";
+  $("cdn-docs-code").textContent = mode === "sign" ? SIGN_DOCS : VIEW_DOCS;
 }
 
 function setupDropZone() {
