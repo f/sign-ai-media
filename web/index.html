@@ -87,6 +87,44 @@
       </form>
 
       <div id="output"></div>
+
+      <section class="cdn-docs" aria-labelledby="cdn-docs-title">
+        <div class="docs-header">
+          <span class="docs-kicker">Browser API</span>
+          <h2 id="cdn-docs-title">Use from jsDelivr</h2>
+          <p>
+            Import the offline browser bundle from any page to sign or inspect
+            AI media with C2PA metadata.
+          </p>
+        </div>
+
+        <pre><code>import {
+  signAiGeneratedMedia,
+  viewAiGeneratedMedia,
+} from "https://cdn.jsdelivr.net/gh/f/sign-ai-media@main/web/cdn/sign-ai-media.browser.js";
+
+const input = document.querySelector("input[type=file]");
+const file = input.files[0];
+
+const { blob } = await signAiGeneratedMedia(file, {
+  metadata: {
+    softwareAgent: "my-generator",
+    version: "1.0.0",
+    generator: "My Generator",
+    model: "my-model-v1",
+    producer: "My Org",
+    prompt: "A red fox in a snowy forest",
+  },
+});
+
+console.log(await viewAiGeneratedMedia(blob));</code></pre>
+
+        <p class="docs-note">
+          The CDN build includes the C2PA WebAssembly payload inline, so it does
+          not require a separate WASM host. Pin a commit SHA or release tag
+          instead of <code>@main</code> for production pages.
+        </p>
+      </section>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
