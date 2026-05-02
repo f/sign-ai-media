@@ -187,4 +187,4 @@ The package is intentionally small. Most of the heavy lifting is delegated to `c
 
 ## License
 
-ISC
+GPL-3.0-or-later

@@ -41,7 +41,7 @@
     "provenance"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "c2pa-node": "^0.5.26",
     "commander": "^14.0.3",
