@@ -1,6 +1,6 @@
 {
   "name": "sign-ai-media",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Sign media with C2PA metadata that declares it as AI-generated.",
   "homepage": "https://github.com/f/sign-ai-media#readme",
   "bugs": {
@@ -43,7 +43,7 @@
   "author": "",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "c2pa-node": "^0.5.26",
+    "@contentauth/c2pa-node": "^0.5.4",
     "commander": "^14.0.3",
     "zod": "^4.4.2"
   },

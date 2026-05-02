@@ -2,20 +2,24 @@ import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 
 import {
-  ManifestBuilder,
-  SigningAlgorithm,
-  createC2pa,
-  createTestSigner,
+  Builder,
+  LocalSigner as ContentAuthLocalSigner,
+  Reader,
   type FileAsset,
-  type LocalSigner,
-  type ResolvedManifest,
-  type Signer,
-  type SignOptions,
-  type types,
-} from "c2pa-node";
+  type SigningAlg,
+} from "@contentauth/c2pa-node";
 
 const DEFAULT_DIGITAL_SOURCE_TYPE =
   "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia";
+
+const DEVELOPMENT_CERTIFICATE_URL = new URL(
+  "../assets/certs/development-cert.pem",
+  import.meta.url,
+);
+const DEVELOPMENT_PRIVATE_KEY_URL = new URL(
+  "../assets/certs/development-key.pem",
+  import.meta.url,
+);
 
 const MIME_BY_EXTENSION = new Map<string, string>([
   [".avif", "image/avif"],
@@ -99,7 +103,7 @@ export interface SignAiGeneratedImageOptions {
 
 export interface SignAiGeneratedImageResult {
   output: string;
-  manifest: ReturnType<ManifestBuilder["asSendable"]>;
+  manifest: ManifestDefinition;
 }
 
 export type SignAiGeneratedMediaOptions = SignAiGeneratedImageOptions;
@@ -148,7 +152,30 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-export { SigningAlgorithm, createTestSigner, type LocalSigner, type Signer };
+export interface ManifestDefinition {
+  claim_generator: string;
+  claim_generator_info: Array<{ name: string; version?: string }>;
+  format: string;
+  title: string;
+  assertions: Array<{
+    label: string;
+    data: Record<string, unknown>;
+  }>;
+  vendor?: string;
+}
+
+export enum SigningAlgorithm {
+  ES256 = "es256",
+  ES384 = "es384",
+  ES512 = "es512",
+  PS256 = "ps256",
+  PS384 = "ps384",
+  PS512 = "ps512",
+  Ed25519 = "ed25519",
+}
+
+export type LocalSigner = ContentAuthLocalSigner;
+export type Signer = ContentAuthLocalSigner;
 
 export async function createLocalSigner({
   certificatePath,
@@ -161,19 +188,26 @@ export async function createLocalSigner({
     readFile(privateKeyPath),
   ]);
 
-  const signer: LocalSigner = {
-    type: "local",
+  return ContentAuthLocalSigner.newSigner(
     certificate,
     privateKey,
-  };
+    (algorithm ?? SigningAlgorithm.ES256) as SigningAlg,
+    tsaUrl,
+  );
+}
 
-  if (algorithm) {
-    signer.algorithm = algorithm;
-  }
+export async function createTestSigner(): Promise<LocalSigner> {
+  const [certificate, privateKey] = await Promise.all([
+    readFile(DEVELOPMENT_CERTIFICATE_URL),
+    readFile(DEVELOPMENT_PRIVATE_KEY_URL),
+  ]);
 
-  signer.tsaUrl = tsaUrl;
-
-  return signer;
+  return ContentAuthLocalSigner.newSigner(
+    certificate,
+    privateKey,
+    SigningAlgorithm.ES256,
+    "http://timestamp.digicert.com",
+  );
 }
 
 export async function signAiGeneratedImage({
@@ -193,26 +227,25 @@ export async function signAiGeneratedImage({
     vendor,
   });
   const effectiveSigner = signer ?? (await createTestSigner());
-  const c2pa = createC2pa({ signer: effectiveSigner });
   const asset: FileAsset = { path: input, mimeType };
-  const options: SignOptions = {
-    embed,
-    outputPath: output,
-  };
+  const builder = Builder.withJson(
+    manifest as Parameters<typeof Builder.withJson>[0],
+  );
+  builder.updateManifestProperty("claim_version", 2);
 
-  if (remoteManifestUrl) {
-    options.remoteManifestUrl = remoteManifestUrl;
+  if (!embed) {
+    builder.setNoEmbed(true);
   }
 
-  await c2pa.sign({
-    asset,
-    manifest,
-    options,
-  });
+  if (remoteManifestUrl) {
+    builder.setRemoteUrl(remoteManifestUrl);
+  }
+
+  builder.sign(effectiveSigner, asset, { path: output });
 
   return {
     output,
-    manifest: manifest.asSendable(),
+    manifest,
   };
 }
 
@@ -226,10 +259,10 @@ export async function viewAiGeneratedMedia({
   input,
   mimeType,
 }: ViewAiGeneratedMediaOptions): Promise<ViewAiGeneratedMediaResult> {
-  const c2pa = createC2pa();
   const asset: FileAsset = mimeType ? { path: input, mimeType } : { path: input };
-  const manifestStore = await c2pa.read(asset);
-  const activeManifest = manifestStore?.active_manifest ?? null;
+  const reader = await Reader.fromAsset(asset);
+  const activeManifest = reader?.getActive() ?? null;
+  const manifestStore = reader?.json() as ManifestStoreLike | null | undefined;
   const validationStatus = normalizeValidationStatus(
     manifestStore?.validation_status ?? [],
   );
@@ -244,7 +277,7 @@ export async function viewAiGeneratedMedia({
     validationStatus,
     assertionLabels:
       activeManifest?.assertions
-        ?.map((assertion: types.ManifestAssertion) => assertion.label)
+        ?.map((assertion: ManifestAssertionLike) => assertion.label)
         .sort() ?? [],
   };
 }
@@ -259,7 +292,7 @@ export function createAiGeneratedManifest({
   mimeType: string;
   metadata: AiGeneratedMetadata;
   vendor?: string;
-}): ManifestBuilder {
+}): ManifestDefinition {
   const when = normalizeTimestamp(metadata.createdAt);
   const softwareAgent = {
     name: metadata.softwareAgent,
@@ -271,46 +304,42 @@ export function createAiGeneratedManifest({
     metadata.claimGenerator ??
     formatClaimGenerator(metadata.softwareAgent, metadata.version);
 
-  return new ManifestBuilder(
-    {
-      claim_generator: claimGenerator,
-      claim_generator_info: [softwareAgent],
-      format: mimeType,
-      title: metadata.title ?? basename(input),
-      assertions: [
-        {
-          label: "c2pa.actions.v2",
-          data: {
-            actions: [
-              {
-                action: "c2pa.created",
-                when,
-                softwareAgent,
-                digitalSourceType,
-              },
-            ],
-          },
+  return {
+    claim_generator: claimGenerator,
+    claim_generator_info: [softwareAgent],
+    format: mimeType,
+    title: metadata.title ?? basename(input),
+    assertions: [
+      {
+        label: "c2pa.actions.v2",
+        data: {
+          actions: [
+            {
+              action: "c2pa.created",
+              when,
+              softwareAgent,
+              digitalSourceType,
+            },
+          ],
         },
-        {
-          label: "stds.schema-org.CreativeWork",
-          data: {
-            "@context": "https://schema.org",
-            "@type": "CreativeWork",
-            generator:
-              metadata.generator ??
-              metadata.model ??
-              metadata.softwareAgent,
-            producer: metadata.producer,
-            softwareAgent,
-            prompt: metadata.prompt,
-            digitalSourceType,
-            ...metadata.creativeWork,
-          },
+      },
+      {
+        label: "stds.schema-org.CreativeWork",
+        data: {
+          "@context": "https://schema.org",
+          "@type": "CreativeWork",
+          generator:
+            metadata.generator ?? metadata.model ?? metadata.softwareAgent,
+          producer: metadata.producer,
+          softwareAgent,
+          prompt: metadata.prompt,
+          digitalSourceType,
+          ...metadata.creativeWork,
         },
-      ],
-    },
-    { vendor },
-  );
+      },
+    ],
+    ...(vendor ? { vendor } : {}),
+  };
 }
 
 export function inferMimeType(filePath: string): string {
@@ -332,14 +361,12 @@ export function formatClaimGenerator(name: string, version?: string): string {
   return version ? `${normalizedName}/${version}` : normalizedName;
 }
 
-function extractAiGeneratedMetadata(
-  manifest: ResolvedManifest,
-): ExtractedAiGeneratedMetadata {
+function extractAiGeneratedMetadata(manifest: ManifestLike): ExtractedAiGeneratedMetadata {
   const actionAssertion = manifest.assertions?.find(
-    (assertion: types.ManifestAssertion) => assertion.label === "c2pa.actions.v2",
+    (assertion: ManifestAssertionLike) => assertion.label === "c2pa.actions.v2",
   );
   const creativeWorkAssertion = manifest.assertions?.find(
-    (assertion: types.ManifestAssertion) =>
+    (assertion: ManifestAssertionLike) =>
       assertion.label === "stds.schema-org.CreativeWork",
   );
   const action = getFirstAction(actionAssertion?.data);
@@ -351,7 +378,7 @@ function extractAiGeneratedMetadata(
   return {
     title: manifest.title ?? null,
     format: manifest.format ?? null,
-    claimGenerator: manifest.claim_generator ?? null,
+    claimGenerator: getClaimGenerator(manifest),
     generator: toJsonValue(creativeWork.generator),
     model: toJsonValue(creativeWork.model),
     producer: toJsonValue(creativeWork.producer),
@@ -368,7 +395,7 @@ function extractAiGeneratedMetadata(
 }
 
 function normalizeValidationStatus(
-  statuses: types.ValidationStatus[],
+  statuses: ValidationStatusLike[],
 ): ExtractedValidationStatus[] {
   return statuses.map((status) => ({
     code: status.code,
@@ -398,6 +425,50 @@ function toJsonValue(value: unknown): JsonValue {
   }
 
   return null;
+}
+
+type ManifestStoreLike = {
+  validation_status?: ValidationStatusLike[] | null;
+};
+
+type ManifestLike = {
+  assertions?: ManifestAssertionLike[];
+  claim_generator?: string | null;
+  claim_generator_info?: Array<{ name?: string; version?: string }>;
+  format?: string | null;
+  signature_info?: {
+    issuer?: string | null;
+    time?: string | null;
+  } | null;
+  title?: string | null;
+};
+
+type ManifestAssertionLike = {
+  label: string;
+  data?: unknown;
+};
+
+type ValidationStatusLike = {
+  code: string;
+  explanation?: string | null;
+  url?: string | null;
+};
+
+function getClaimGenerator(manifest: ManifestLike): string | null {
+  if (manifest.claim_generator) {
+    return manifest.claim_generator;
+  }
+
+  const generatorInfo = manifest.claim_generator_info ?? [];
+
+  if (generatorInfo.length === 0) {
+    return null;
+  }
+
+  return generatorInfo
+    .map(({ name, version }) => (version ? `${name}/${version}` : name))
+    .filter((value): value is string => Boolean(value))
+    .join(" ");
 }
 
 function getFirstAction(data: unknown): Record<string, unknown> | null {

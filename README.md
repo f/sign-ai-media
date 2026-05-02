@@ -42,7 +42,7 @@ You can also run the CLI without installing it first:
 npx sign-ai-media input.png output.png --software-agent "my-generator"
 ```
 
-This package uses `c2pa-node`, which ships native bindings. Prebuilt binaries are available for common macOS, Linux, and Windows platforms. Other platforms may need a local Rust toolchain.
+This package uses `@contentauth/c2pa-node`, which ships native bindings. Prebuilt binaries are available for common macOS, Linux, and Windows platforms. Other platforms may need a local Rust toolchain.
 
 ## CLI Usage
 
@@ -251,9 +251,9 @@ Pass `--mime-type` or `mimeType` when the extension is missing or unusual.
 
 ## Signing Credentials
 
-C2PA manifests need a signer, but this package does not require users to bring a certificate/private-key pair just to get started. If no signer is provided, `signAiGeneratedMedia()` and the CLI use `c2pa-node`'s bundled test signer.
+C2PA manifests need a signer, but this package does not require users to bring a certificate/private-key pair just to get started. If no signer is provided, `signAiGeneratedMedia()` and the CLI use bundled test credentials.
 
-For production provenance, pass a local certificate/private-key pair through `createLocalSigner()` or another compatible `c2pa-node` signer object. Do not use another company's name, certificate, or identity fields. Test credentials should not be used for production provenance.
+For production provenance, pass a local certificate/private-key pair through `createLocalSigner()` or another compatible `@contentauth/c2pa-node` signer object. Do not use another company's name, certificate, or identity fields. Test credentials should not be used for production provenance.
 
 ## Verifying Output
 
@@ -268,7 +268,7 @@ npm run typecheck
 node dist/cli.js --help
 ```
 
-The package is intentionally small. Most of the heavy lifting is delegated to `c2pa-node`; this project focuses on shaping a clear AI-generation manifest and giving applications a stable CLI/API around it.
+The package is intentionally small. Most of the heavy lifting is delegated to `@contentauth/c2pa-node`; this project focuses on shaping a clear AI-generation manifest and giving applications a stable CLI/API around it.
 
 ## License
 

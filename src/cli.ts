@@ -152,7 +152,7 @@ async function resolveSigner(rawOptions: {
 
   if (!hasCertificate || !hasPrivateKey) {
     console.warn(
-      "No signing certificate/private key provided; using bundled c2pa-node test credentials. Use --certificate and --private-key for production provenance.",
+      "No signing certificate/private key provided; using bundled test credentials. Use --certificate and --private-key for production provenance.",
     );
 
     return undefined;
