@@ -98,7 +98,8 @@
           </p>
         </div>
 
-        <pre><code>import {
+        <pre><code>&lt;script type="module"&gt;
+import {
   signAiGeneratedMedia,
   viewAiGeneratedMedia,
 } from "https://cdn.jsdelivr.net/gh/f/sign-ai-media@main/web/cdn/sign-ai-media.browser.js";
@@ -117,7 +118,8 @@ const { blob } = await signAiGeneratedMedia(file, {
   },
 });
 
-console.log(await viewAiGeneratedMedia(blob));</code></pre>
+console.log(await viewAiGeneratedMedia(blob));
+&lt;/script&gt;</code></pre>
 
         <p class="docs-note">
           The CDN build includes the C2PA WebAssembly payload inline, so it does
