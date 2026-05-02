@@ -47,7 +47,7 @@ This package uses `c2pa-node`, which ships native bindings. Prebuilt binaries ar
 ## CLI Usage
 
 ```sh
-sign-ai-media input.png output.png \
+npx sign-ai-media input.png output.png \
   --software-agent "acme-image-model" \
   --version "1.0.0" \
   --generator "Acme Image API" \
@@ -58,7 +58,7 @@ sign-ai-media input.png output.png \
 For production provenance, pass your own signing credentials:
 
 ```sh
-sign-ai-media input.png output.png \
+npx sign-ai-media input.png output.png \
   --software-agent "acme-image-model" \
   --certificate ./certs/signing-cert.pem \
   --private-key ./certs/signing-key.pem \
@@ -71,7 +71,7 @@ sign-ai-media input.png output.png \
 To inspect AI/C2PA metadata in a signed file, use `--view` with the input file:
 
 ```sh
-sign-ai-media --view output.png
+npx sign-ai-media --view output.png
 ```
 
 The viewer does not modify the file. It reads the active C2PA manifest, extracts the AI-generation fields written by this package, and prints a readable summary:
