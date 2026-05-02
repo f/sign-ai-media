@@ -1,7 +1,11 @@
 # sign-ai-media
 
 <p align="center">
-  <img src="./assets/logo.svg" alt="sign-ai-media logo" width="160" height="160">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-lockup-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/logo-lockup-light.png">
+    <img src="./assets/logo-lockup-light.png" alt="sign-ai-media logo" width="600">
+  </picture>
 </p>
 
 <p align="center">
