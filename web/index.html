@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sign-ai-media</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <img
+          class="logo-lockup"
+          src="./logo-lockup.svg"
+          alt="sign-ai-media"
+        />
+        <p>Sign and inspect AI-generated media with C2PA provenance — entirely in the browser.</p>
+        <span class="dev-badge">Uses development signing credentials</span>
+      </header>
+
+      <div class="tabs">
+        <button class="tab tab-active" id="tab-sign">Sign</button>
+        <button class="tab" id="tab-view">View</button>
+      </div>
+
+      <div class="drop-zone" id="drop-zone">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <div class="drop-label" id="drop-label">Drop image or video to sign</div>
+        <input type="file" id="file-input" accept="image/*,video/*" hidden />
+        <div class="file-name hidden" id="file-name"></div>
+      </div>
+
+      <form class="sign-form" id="sign-form">
+        <div class="form-row">
+          <div class="field">
+            <label for="software-agent">Software Agent *</label>
+            <input id="software-agent" placeholder="my-generator" required />
+          </div>
+          <div class="field">
+            <label for="version">Version</label>
+            <input id="version" placeholder="1.0.0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="generator">Generator</label>
+            <input id="generator" placeholder="Acme Image API" />
+          </div>
+          <div class="field">
+            <label for="model">Model</label>
+            <input id="model" placeholder="acme-diffusion-v1" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="producer">Producer</label>
+          <input id="producer" placeholder="Acme Labs" />
+        </div>
+        <div class="field">
+          <label for="prompt">Prompt</label>
+          <textarea id="prompt" placeholder="A red fox in a snowy forest" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label for="negative-prompt">Negative Prompt</label>
+          <input id="negative-prompt" placeholder="low quality, blurry" />
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="source-type">Source Type</label>
+            <select id="source-type"></select>
+          </div>
+          <div class="field">
+            <label for="seed">Seed</label>
+            <input id="seed" placeholder="12345" />
+          </div>
+        </div>
+        <button type="submit" class="submit-btn">Sign Media</button>
+      </form>
+
+      <div id="output"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
