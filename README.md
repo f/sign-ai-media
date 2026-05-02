@@ -253,7 +253,43 @@ Pass `--mime-type` or `mimeType` when the extension is missing or unusual.
 
 C2PA manifests need a signer, but this package does not require users to bring a certificate/private-key pair just to get started. If no signer is provided, `signAiGeneratedMedia()` and the CLI use bundled test credentials.
 
-For production provenance, pass a local certificate/private-key pair through `createLocalSigner()` or another compatible `@contentauth/c2pa-node` signer object. Do not use another company's name, certificate, or identity fields. Test credentials should not be used for production provenance.
+For production provenance, pass a local certificate/private-key pair through `createLocalSigner()` or another compatible `@contentauth/c2pa-node` signer object. Do not use another company's name, certificate, or identity fields.
+
+### Where to get production certificates
+
+Production C2PA signing credentials should come from a certificate authority on the C2PA trust list. The official Content Authenticity Initiative docs explain that conforming generator products must use a certificate that chains back to a trusted C2PA certificate authority, and that C2PA maintains separate trust lists for claim-signing certificates and timestamp authorities.
+
+Start here:
+
+- [Getting a signing certificate](https://opensource.contentauthenticity.org/docs/signing/get-cert) from the CAI open-source docs.
+- [C2PA trust lists](https://opensource.contentauthenticity.org/docs/conformance/trust-lists), including the C2PA trust list and C2PA TSA trust list.
+- [C2PA Conformance Explorer](https://spec.c2pa.org/conformance-explorer/) for the current readable trust-list view.
+- [C2PA public trust-list repository](https://github.com/c2pa-org/conformance-public/tree/main/trust-list) for the PEM trust-list files.
+
+Certificate authorities listed by the CAI docs include:
+
+- [DigiCert C2PA Media Trust](https://www.digicert.com/solutions/c2pa-media-trust)
+- [SSL.com C2PA Enterprise Content Authenticity Solutions](https://www.ssl.com/article/c2pa-enterprise-content-authenticity-solutions/)
+- [Tauth Labs](https://tauth.io/blog/tauth-labs-becomes-c2pa-certification-authority)
+- [Trufo Trust Certificate Authority](https://trufo.ai/tca)
+
+Provider availability, onboarding requirements, and assurance levels can change, so use the official C2PA trust-list sources above as the source of truth before issuing production credentials.
+
+### Development certificates
+
+The bundled signer is only for local development and demos. It can prove that the package writes and signs a manifest, but it does not give your output a production identity that verifiers should trust.
+
+Use development/test credentials for:
+
+- Local CLI experiments.
+- Integration tests.
+- Demo assets where trust is not implied.
+
+Use production credentials for:
+
+- Public releases.
+- User-facing generated media.
+- Workflows where platforms or verifiers should recognize your organization as the signer.
 
 ## Verifying Output
 
