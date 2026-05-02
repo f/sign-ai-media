@@ -1,0 +1,55 @@
+{
+  "name": "sign-ai-media",
+  "version": "0.0.1",
+  "description": "Sign media with C2PA metadata that declares it as AI-generated.",
+  "homepage": "https://github.com/f/sign-ai-media#readme",
+  "bugs": {
+    "url": "https://github.com/f/sign-ai-media/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/f/sign-ai-media.git"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "sign-ai-media": "dist/cli.js"
+  },
+  "files": [
+    "assets",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "c2pa",
+    "content-authenticity",
+    "ai-generated",
+    "image",
+    "video",
+    "media",
+    "provenance"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "c2pa-node": "^0.5.26",
+    "commander": "^14.0.3",
+    "zod": "^4.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}

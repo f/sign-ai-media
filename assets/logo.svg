@@ -1,0 +1,50 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">sign-ai-media logo</title>
+  <desc id="desc">A rounded media tile with a play symbol, AI spark, and verified C2PA provenance seal.</desc>
+  <defs>
+    <linearGradient id="tile" x1="92" y1="92" x2="420" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="0.52" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="128" y1="142" x2="380" y2="356" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#DBEAFE" stop-opacity="0.82"/>
+    </linearGradient>
+    <linearGradient id="play" x1="211" y1="199" x2="313" y2="301" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#4338CA"/>
+    </linearGradient>
+    <linearGradient id="seal" x1="310" y1="318" x2="436" y2="444" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <filter id="shadow" x="50" y="58" width="412" height="420" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#172554" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="82" y="86" width="348" height="340" rx="88" fill="url(#tile)"/>
+    <rect x="120" y="142" width="272" height="216" rx="42" fill="url(#screen)"/>
+    <path d="M233 207.4C233 196.6 244.9 190 254.1 195.6L322.9 237.2C331.8 242.6 331.8 255.4 322.9 260.8L254.1 302.4C244.9 308 233 301.4 233 290.6V207.4Z" fill="url(#play)"/>
+
+    <path d="M154 188H182" stroke="#1D4ED8" stroke-width="14" stroke-linecap="round" opacity="0.6"/>
+    <path d="M330 312H358" stroke="#1D4ED8" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
+    <path d="M142 382H190" stroke="#BFDBFE" stroke-width="18" stroke-linecap="round" opacity="0.8"/>
+    <path d="M218 382H294" stroke="#BFDBFE" stroke-width="18" stroke-linecap="round" opacity="0.62"/>
+
+    <path d="M368 74V110" stroke="#67E8F9" stroke-width="14" stroke-linecap="round"/>
+    <path d="M368 146V182" stroke="#C4B5FD" stroke-width="14" stroke-linecap="round"/>
+    <path d="M332 110H296" stroke="#A5F3FC" stroke-width="14" stroke-linecap="round"/>
+    <path d="M440 110H404" stroke="#C4B5FD" stroke-width="14" stroke-linecap="round"/>
+    <path d="M342.5 84.5L317 59" stroke="#22D3EE" stroke-width="14" stroke-linecap="round"/>
+    <path d="M419 161L393.5 135.5" stroke="#8B5CF6" stroke-width="14" stroke-linecap="round"/>
+    <path d="M393.5 84.5L419 59" stroke="#60A5FA" stroke-width="14" stroke-linecap="round"/>
+    <path d="M317 161L342.5 135.5" stroke="#06B6D4" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="368" cy="110" r="16" fill="#F8FAFC"/>
+
+    <circle cx="376" cy="376" r="70" fill="url(#seal)" stroke="#F8FAFC" stroke-width="16"/>
+    <path d="M342 376L365 399L412 352" stroke="#F8FAFC" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
